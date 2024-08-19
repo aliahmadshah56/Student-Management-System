@@ -6,7 +6,6 @@ import 'student_registration_screen.dart';
 import 'student_home_screen.dart';
 import 'student_view_courses_screen.dart';
 import 'student_enrollment_form_screen.dart';
-import 'student_enrollment_status_screen.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();

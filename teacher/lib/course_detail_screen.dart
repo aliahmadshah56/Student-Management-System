@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CourseDetailScreen extends StatelessWidget {
@@ -160,6 +161,7 @@ class TopicCard extends StatelessWidget {
       ),
     );
   }
+
 
   Future<void> _launchURL(String url) async {
     if (await canLaunch(url)) {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
-
 class StudentLoginScreen extends StatefulWidget {
   @override
   _StudentLoginScreenState createState() => _StudentLoginScreenState();
@@ -12,12 +10,12 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
   final _auth = FirebaseAuth.instance;
   String email = '';
   String password = '';
-  bool _obscureText = true; // Track password visibility
+  bool _obscureText = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal[50],  // Light teal background
+      backgroundColor: Colors.teal[50],
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Center(
@@ -44,7 +42,9 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                     TextField(
                       keyboardType: TextInputType.emailAddress,
                       onChanged: (value) {
-                        email = value;
+                        setState(() {
+                          email = value;
+                        });
                       },
                       decoration: InputDecoration(
                         labelText: 'Email',
@@ -58,7 +58,9 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                     TextField(
                       obscureText: _obscureText,
                       onChanged: (value) {
-                        password = value;
+                        setState(() {
+                          password = value;
+                        });
                       },
                       decoration: InputDecoration(
                         labelText: 'Password',
@@ -94,7 +96,7 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                           );
                         }
                       },
-                      child: Text('Login',style: TextStyle(color: Colors.white),),
+                      child: Text('Login', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         padding: EdgeInsets.symmetric(vertical: 15),
