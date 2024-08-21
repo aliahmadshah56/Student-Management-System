@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'course_detail_screen.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -26,7 +25,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final courseId = widget.request['course_id'];
 
     try {
-      // Fetch course data
       final courseSnapshot = await FirebaseFirestore.instance
           .collection('courses')
           .doc(courseId)
@@ -99,10 +97,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                 MaterialPageRoute(
-                    builder: (context) => CourseDetailScreen(courseId: courseDetails['course_id']),
+                  MaterialPageRoute(
+                    builder: (context) => CourseDetailScreen(
+                      studentId: studentId,
+                      courseId: widget.request['course_id'], // Pass the course ID
+                    ),
                   ),
-               );
+                );
               },
               child: Text('View Course Topics'),
             ),
@@ -111,7 +112,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       ),
     );
   }
-
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(

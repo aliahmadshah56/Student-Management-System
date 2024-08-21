@@ -1,173 +1,176 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+import 'package:teacher/progress_screen.dart';
 
-class CourseDetailScreen extends StatelessWidget {
+class CourseDetailScreen extends StatefulWidget {
+  final String studentId;
   final String courseId;
 
-  CourseDetailScreen({required this.courseId});
+  CourseDetailScreen({required this.studentId, required this.courseId});
+
+  @override
+  _CourseDetailScreenState createState() => _CourseDetailScreenState();
+}
+
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  List<String> showTopics = [];
+  List<Map<String, dynamic>> topics = [];
+  bool isLoading = true;
+  int totalTopics = 0;
+  int completedTopics = 0;
+  int pendingTopics = 0;
+  List<String> completedTopicList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStudentDetails(); // Fetch student details and topics
+  }
+
+  Future<void> fetchStudentDetails() async {
+    try {
+      final studentRef = FirebaseFirestore.instance.collection('students').doc(widget.studentId);
+      final studentSnapshot = await studentRef.get();
+
+      if (!studentSnapshot.exists) {
+        await studentRef.set({
+          'name': 'Unknown',
+          'showTopics': [],
+        });
+      }
+
+      final studentData = studentSnapshot.data()!;
+      setState(() {
+        showTopics = List<String>.from(studentData['showTopics'] ?? []);
+      });
+
+      fetchCourseTopics(); // Fetch course topics after fetching student details
+      fetchProgressData(); // Fetch progress data for the student
+    } catch (e) {
+      print("Error fetching student details: $e");
+    }
+  }
+
+  Future<void> fetchCourseTopics() async {
+    try {
+      final courseSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(widget.courseId)
+          .collection('topics')
+          .get();
+
+      setState(() {
+        topics = courseSnapshot.docs.map((doc) => {
+          'id': doc.id,
+          'name': doc.data()['name'],
+        }).toList();
+        totalTopics = topics.length;
+      });
+    } catch (e) {
+      print("Error fetching course topics: $e");
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading once data is fetched
+      });
+    }
+  }
+
+  Future<void> fetchProgressData() async {
+    try {
+      final progressSnapshot = await FirebaseFirestore.instance
+          .collection('students')
+          .doc(widget.studentId)
+          .collection('progress')
+          .doc(widget.courseId) // Assuming courseId is used as document ID
+          .collection('topics')
+          .get();
+
+      setState(() {
+        completedTopics = progressSnapshot.docs.where((doc) => doc.data()['status'] == 'completed').length;
+        pendingTopics = totalTopics - completedTopics;
+        completedTopicList = progressSnapshot.docs
+            .where((doc) => doc.data()['status'] == 'completed')
+            .map((doc) => doc.id)
+            .toList();
+      });
+    } catch (e) {
+      print("Error fetching progress data: $e");
+    }
+  }
+
+  void toggleTopicVisibility(String topicId, bool isVisible) async {
+    final studentRef = FirebaseFirestore.instance.collection('students').doc(widget.studentId);
+
+    try {
+      setState(() {
+        if (isVisible) {
+          if (!showTopics.contains(topicId)) {
+            showTopics.add(topicId);
+          }
+        } else {
+          showTopics.remove(topicId);
+        }
+      });
+
+      await studentRef.update({
+        'showTopics': showTopics,
+      });
+    } catch (e) {
+      print("Error updating topic visibility: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Course Details'),
-
-        elevation: 0,
-      ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('courses')
-            .doc(courseId)
-            .get(),
-        builder: (context, courseSnapshot) {
-          if (courseSnapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          if (courseSnapshot.hasError) {
-            return Center(child: Text('Error fetching course details: ${courseSnapshot.error}'));
-          }
-
-          if (!courseSnapshot.hasData || !courseSnapshot.data!.exists) {
-            return Center(child: Text('Course not found'));
-          }
-
-          final courseData = courseSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  courseData['name'] ?? 'No course name',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.show_chart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProgressPage(
+                    totalTopics: totalTopics,
+                    completedTopics: completedTopics,
+                    pendingTopics: pendingTopics,
+                    completedTopicList: completedTopicList,
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  courseData['description'] ?? 'No course description',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Course Topics:',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('courses')
-                      .doc(courseId)
-                      .collection('topics')
-                      .snapshots(),
-                  builder: (context, topicSnapshot) {
-                    if (topicSnapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
-                    }
-
-                    if (topicSnapshot.hasError) {
-                      return Center(child: Text('Error fetching topics: ${topicSnapshot.error}'));
-                    }
-
-                    if (!topicSnapshot.hasData || topicSnapshot.data!.docs.isEmpty) {
-                      return Center(child: Text('No topics available'));
-                    }
-
-                    final topics = topicSnapshot.data!.docs;
-
-                    return ListView.builder(
-                      itemCount: topics.length,
-                      itemBuilder: (context, index) {
-                        final topic = topics[index];
-                        return TopicCard(topic: topic);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+              );
+            },
+          ),
+        ],
       ),
-    );
-  }
-}
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          Expanded(
+            child: topics.isEmpty
+                ? Center(child: Text('No topics found'))
+                : ListView.builder(
+              itemCount: topics.length,
+              itemBuilder: (context, index) {
+                final topic = topics[index];
+                final isVisible = showTopics.contains(topic['id']);
 
-class TopicCard extends StatelessWidget {
-  final DocumentSnapshot topic;
-
-  TopicCard({required this.topic});
-
-  @override
-  Widget build(BuildContext context) {
-    final topicData = topic.data() as Map<String, dynamic>? ?? {};
-    final topicName = topicData['name'] ?? 'No topic name';
-    final description = topicData['description'] ?? 'No description';
-    final documentationUrl = topicData['documentation_url'] ?? '';
-    final videoUrl = topicData['video_url'] ?? '';
-
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              topicName,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                return ListTile(
+                  title: Text(topic['name']),
+                  trailing: Checkbox(
+                    value: isVisible,
+                    onChanged: (bool? value) {
+                      toggleTopicVisibility(topic['id'], value ?? false);
+                    },
+                  ),
+                );
+              },
             ),
-            if (description.isNotEmpty) ...[
-              SizedBox(height: 8),
-              Text(
-                'Description: $description',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black87),
-              ),
-            ],
-            if (documentationUrl.isNotEmpty) ...[
-              SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _launchURL(documentationUrl),
-                child: Text(
-                  'Documentation URL: $documentationUrl',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.blue),
-                ),
-              ),
-            ],
-            if (videoUrl.isNotEmpty) ...[
-              SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _launchURL(videoUrl),
-                child: Text(
-                  'Video URL: $videoUrl',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.blue),
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
-  }
-
-
-  Future<void> _launchURL(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
   }
 }

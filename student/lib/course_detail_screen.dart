@@ -1,10 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:student/progress_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'progress_screen.dart'; // Ensure this import is correct
 
 class CourseDetailScreen extends StatelessWidget {
   final String courseId;
@@ -17,30 +14,42 @@ class CourseDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Course Details'),
-        backgroundColor: Colors.teal,
-        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.bar_chart),
             onPressed: () async {
               try {
-                final topicSnapshot = await FirebaseFirestore.instance
-                    .collection('courses')
-                    .doc(courseId)
-                    .collection('topics')
+                // Fetch the student's progress data
+                final studentSnapshot = await FirebaseFirestore.instance
+                    .collection('students')
+                    .doc(studentId)
                     .get();
 
-                final totalTopics = topicSnapshot.size;
+                // Get the list of topic IDs, ensuring it is cast to List<String>
+                final showTopics = List<String>.from(
+                    studentSnapshot.data()?['showTopics'] ?? []);
 
-                final completedTopicsList = topicSnapshot.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data.containsKey('status') &&
-                      data['status'] == 'completed';
-                }).map((doc) {
-                  return (doc.data() as Map<String, dynamic>)['name'] as String;
-                }).toList();
+                if (showTopics.isEmpty) {
+                  throw 'No topics found for this student.';
+                }
 
-                final completedTopics = completedTopicsList.length;
+                // Fetch topic details
+                final topicSnapshots = await Future.wait(
+                  showTopics.map((topicId) => FirebaseFirestore.instance
+                      .collection('courses')
+                      .doc(courseId)
+                      .collection('topics')
+                      .doc(topicId)
+                      .get()),
+                );
+
+                final completedTopicList = topicSnapshots
+                    .where((snapshot) => snapshot.data()?['status'] == 'completed')
+                    .map((snapshot) => snapshot.data()?['name'] ?? 'Unknown')
+                    .toList();
+
+                final totalTopics = showTopics.length;
+                final completedTopics = completedTopicList.length;
                 final pendingTopics = totalTopics - completedTopics;
 
                 Navigator.push(
@@ -49,8 +58,8 @@ class CourseDetailScreen extends StatelessWidget {
                     builder: (context) => ProgressPage(
                       totalTopics: totalTopics,
                       completedTopics: completedTopics,
-                      pendingTopics: pendingTopics,
-                      completedTopicList: completedTopicsList,
+                      pendingTopics: pendingTopics, completedTopicList: [],
+                     // completedTopicList: completedTopicList,
                     ),
                   ),
                 );
@@ -63,7 +72,8 @@ class CourseDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Stack(
+
+body: Stack(
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,15 +114,53 @@ class CourseDetailScreen extends StatelessWidget {
 
                     final topics = topicSnapshot.data!.docs;
 
-                    return ListView.builder(
-                      itemCount: topics.length,
-                      itemBuilder: (context, index) {
-                        final topic = topics[index];
-                        return TopicCard(
-                          topic: topic,
-                          studentId: studentId,
-                          courseId: courseId,
-                          topicNumber: index + 1, // Pass the topic number here
+                    // Get the list of topic IDs from student's showTopics
+                    final showTopicsFuture = FirebaseFirestore.instance
+                        .collection('students')
+                        .doc(studentId)
+                        .get()
+                        .then((studentSnapshot) => List<String>.from(
+                            studentSnapshot.data()?['showTopics'] ?? []));
+
+                    return FutureBuilder<List<String>>(
+                      future: showTopicsFuture,
+                      builder: (context, showTopicsSnapshot) {
+                        if (showTopicsSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+
+                        if (showTopicsSnapshot.hasError) {
+                          return Center(
+                              child: Text(
+                                  'Error fetching student topics: ${showTopicsSnapshot.error}'));
+                        }
+
+                        if (!showTopicsSnapshot.hasData ||
+                            showTopicsSnapshot.data!.isEmpty) {
+                          return Center(
+                              child:
+                                  Text('No topics available for this student'));
+                        }
+
+                        final showTopics = showTopicsSnapshot.data!;
+
+                        final filteredTopics = topics
+                            .where((topic) => showTopics.contains(topic.id))
+                            .toList();
+
+                        return ListView.builder(
+                          itemCount: filteredTopics.length,
+                          itemBuilder: (context, index) {
+                            final topic = filteredTopics[index];
+                            return TopicCard(
+                              topic: topic,
+                              studentId: studentId,
+                              courseId: courseId,
+                              topicNumber:
+                                  index + 1, // Pass the topic number here
+                            );
+                          },
                         );
                       },
                     );
@@ -126,8 +174,6 @@ class CourseDetailScreen extends StatelessWidget {
     );
   }
 }
-
-
 
 class TopicCard extends StatefulWidget {
   final DocumentSnapshot topic;
@@ -286,7 +332,8 @@ class _TopicCardState extends State<TopicCard> {
           .doc(widget.topic.id)
           .set({
         'status': newStatus,
-        'completedAt': newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
+        'completedAt':
+            newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
       });
 
       setState(() {
@@ -299,79 +346,6 @@ class _TopicCardState extends State<TopicCard> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating status: $e')),
-      );
-    }
-  }
-
-  void _showDetailsDialog(
-      BuildContext context,
-      String topicName,
-      int topicNumber,
-      String description,
-      String documentationUrl,
-      String videoUrl) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('$topicName Details'),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Topic Number: $topicNumber',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('Description: $description'),
-              if (documentationUrl.isNotEmpty) ...[
-                SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => _launchUrl(context, documentationUrl),
-                  child: Text(
-                    'Documentation URL: $documentationUrl',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-              ],
-              if (videoUrl.isNotEmpty) ...[
-                SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => _launchUrl(context, videoUrl),
-                  child: Text(
-                    'Video URL: $videoUrl',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _launchUrl(BuildContext context, String url) async {
-    try {
-      if (!url.startsWith('http')) {
-        url = 'https://$url';
-      }
-      final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        throw 'Could not launch $url';
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening URL: $e')),
       );
     }
   }
@@ -401,5 +375,18 @@ class _TopicCardState extends State<TopicCard> {
         );
       },
     );
+  }
+
+  Future<void> _launchUrl(BuildContext context, String url) async {
+    try {
+      if (!url.startsWith('http')) {
+        url = 'https://$url';
+      }
+      await launch(url);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching URL: $e')),
+      );
+    }
   }
 }
