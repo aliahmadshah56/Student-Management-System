@@ -112,6 +112,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),

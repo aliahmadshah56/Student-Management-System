@@ -8,6 +8,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _auth = FirebaseAuth.instance;
+  final _formKey = GlobalKey<FormState>();
   String email = '';
   String password = '';
   bool _obscureText = true;
@@ -27,91 +28,104 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Teacher Login',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    SizedBox(height: 24),
-                    _buildTextField(
-                      hintText: 'Enter your email',
-                      onChanged: (value) {
-                        email = value;
-                      },
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: Icons.email,
-                      color: Colors.grey[600]!,
-                    ),
-                    SizedBox(height: 20),
-                    _buildTextField(
-                      hintText: 'Enter your password',
-                      onChanged: (value) {
-                        password = value;
-                      },
-                      obscureText: _obscureText,
-                      prefixIcon: Icons.lock,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureText ? Icons.visibility : Icons.visibility_off,
-                          color: Colors.grey[600],
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Teacher Login',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureText = !_obscureText;
-                          });
+                      ),
+                      SizedBox(height: 24),
+                      _buildTextField(
+                        hintText: 'Enter your email',
+                        onChanged: (value) => email = value,
+                        keyboardType: TextInputType.emailAddress,
+                        prefixIcon: Icons.email,
+                        color: Colors.grey[600]!,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          return null;
                         },
                       ),
-                      color: Colors.grey[600]!,
-                    ),
-                    SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          final user = await _auth.signInWithEmailAndPassword(
-                              email: email, password: password);
-                          if (user != null) {
-                            Navigator.pushReplacementNamed(context, '/home');
+                      SizedBox(height: 20),
+                      _buildTextField(
+                        hintText: 'Enter your password',
+                        onChanged: (value) => password = value,
+                        obscureText: _obscureText,
+                        prefixIcon: Icons.lock,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureText ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey[600],
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureText = !_obscureText;
+                            });
+                          },
+                        ),
+                        color: Colors.grey[600]!,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password';
                           }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Login failed. Please check your credentials.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                      child: Text('Login', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[800], // Dark grey color
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            try {
+                              final user = await _auth.signInWithEmailAndPassword(
+                                  email: email, password: password);
+                              if (user != null) {
+                                Navigator.pushReplacementNamed(context, '/home');
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Login failed. Please check your credentials.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: Text('Login', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[800],
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
-                      child: Text(
-                        'Register here',
-                        style: TextStyle(color: Colors.grey[800]), // Dark grey color
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      SizedBox(height: 10),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/register');
+                        },
+                        child: Text(
+                          'Register here',
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -129,8 +143,9 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData prefixIcon,
     Widget? suffixIcon,
     required Color color,
+    required String? Function(String?) validator,
   }) {
-    return TextField(
+    return TextFormField(
       obscureText: obscureText,
       keyboardType: keyboardType,
       onChanged: onChanged,
@@ -143,6 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
         suffixIcon: suffixIcon,
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
+      validator: validator,
     );
   }
 }

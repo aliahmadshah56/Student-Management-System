@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notificatio_screen.dart';
 import 'student_view_courses_screen.dart';
 import 'student_scurses_screen.dart';
 
@@ -13,7 +14,7 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final _auth = FirebaseAuth.instance;
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  int _selectedIndex = 0;  // Ensure this is within the valid range of items
+  int _selectedIndex = 0;
 
   String _studentName = '';
   final _firestore = FirebaseFirestore.instance;
@@ -21,16 +22,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final List<Widget> _pages = <Widget>[
     StudentCoursesScreen(),
     StudentViewCoursesScreen(),
-
   ];
 
   @override
   void initState() {
     super.initState();
 
-    // Foreground message handling
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-
       if (message.notification != null) {
         showDialog(
           context: context,
@@ -50,31 +48,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       }
     });
 
-    // Token generation
     _firebaseMessaging.getToken().then((String? token) {
       // Save or send this token to your server if needed
     });
 
     _fetchStudentName();
   }
+
   Future<void> _fetchStudentName() async {
     final user = _auth.currentUser;
     if (user != null) {
       try {
-        // Fetch student's rejection data
-        final rejectionQuery = await _firestore
-            .collection('rejections')
-            .where('student_id', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-
-
-        if (rejectionQuery.docs.isNotEmpty) {
-          final doc = rejectionQuery.docs.first;
-
-          final studentName = doc.data()['rejected_name'];
-
-          // Ensure studentName is not null or empty
+        final doc = await _firestore.collection('students').doc(user.uid).get();
+        if (doc.exists) {
+          final studentName = doc.data()?['name'];
           if (studentName != null && studentName.isNotEmpty) {
             setState(() {
               _studentName = studentName;
@@ -86,11 +73,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           }
         } else {
           setState(() {
-            _studentName = '';
+            _studentName = 'No Name Found';
           });
         }
       } catch (e) {
-        print('Error fetching student name: $e'); // Print error for debugging
+        print('Error fetching student name: $e');
         setState(() {
           _studentName = 'Failed to fetch name';
         });
@@ -99,8 +86,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       setState(() {
         _studentName = 'User not logged in';
       });
-    }
-  }
+
+          }
+      }
+
+
 
   void _onItemTapped(int index) {
     if (index >= 0 && index < _pages.length) {
@@ -184,7 +174,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             icon: Icon(Icons.view_list),
             label: 'View Courses',
           ),
-          // Removed Enrollment Status item from the navigation bar
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
@@ -233,17 +222,4 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class NotificationsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Notifications'),
-        backgroundColor: Colors.teal,
-      ),
-      body: Center(
-        child: Text('No notifications available at the moment.'),
-      ),
-    );
-  }
-}
+

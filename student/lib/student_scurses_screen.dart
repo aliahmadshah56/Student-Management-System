@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'course_detail_screen.dart';
+import 'course_detail_screen.dart'; // Ensure this import is correct
 
 class StudentCoursesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      // Handle the case where the user is not logged in
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('My Courses'),
+          backgroundColor: Colors.teal,
+          elevation: 0,
+        ),
+        body: Center(
+          child: Text('Please log in to view your courses.'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -17,7 +31,7 @@ class StudentCoursesScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('requests')
-            .where('student_id', isEqualTo: user?.uid)
+            .where('student_id', isEqualTo: user.uid)
             .where('status', isEqualTo: 'accepted')
             .snapshots(),
         builder: (context, snapshot) {
@@ -64,14 +78,19 @@ class StudentCoursesScreen extends StatelessWidget {
                     ),
                     child: ListTile(
                       contentPadding: EdgeInsets.all(16),
-                      title: Text(courseData['name'] ?? 'No course name',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      title: Text(
+                        courseData['name'] ?? 'No course name',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text('Tap to view details', style: TextStyle(color: Colors.grey[600])),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CourseDetailScreen(courseId: courseId),
+                            builder: (context) => CourseDetailScreen(
+                              courseId: courseId,
+                              studentId: user.uid, // Pass the actual student ID here
+                            ),
                           ),
                         );
                       },

@@ -1,5 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Function to send notification
+Future<void> sendNotification(String title, String body) async {
+  const String serverKey = 'YOUR_SERVER_KEY'; // Replace with your server key
+  const String fcmUrl = 'https://fcm.googleapis.com/fcm/send';
+
+  final response = await http.post(
+    Uri.parse(fcmUrl),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'key=$serverKey',
+    },
+    body: jsonEncode({
+      'notification': {
+        'title': title,
+        'body': body,
+      },
+      'priority': 'high',
+      'to': '/topics/students', // Topic or specific device token
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    print('Notification sent successfully!');
+  } else {
+    print('Failed to send notification: ${response.body}');
+  }
+}
 
 class SendNotificationScreen extends StatefulWidget {
   @override
@@ -7,22 +36,23 @@ class SendNotificationScreen extends StatefulWidget {
 }
 
 class _SendNotificationScreenState extends State<SendNotificationScreen> {
-  final TextEditingController _notificationTitleController =
-  TextEditingController();
-  final TextEditingController _notificationBodyController =
-  TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _bodyController = TextEditingController();
 
-  void _subscribeToTopic() async {
-    String title = _notificationTitleController.text;
-    String body = _notificationBodyController.text;
+  void _sendNotification() async {
+    final title = _titleController.text;
+    final body = _bodyController.text;
 
     if (title.isNotEmpty && body.isNotEmpty) {
-      await FirebaseMessaging.instance.subscribeToTopic('students');
-
-      _notificationTitleController.clear();
-      _notificationBodyController.clear();
+      await sendNotification(title, body); // Call the function correctly
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Subscribed to topic and notification sent successfully!')),
+        SnackBar(content: Text('Notification sent!')),
+      );
+      _titleController.clear();
+      _bodyController.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter title and body.')),
       );
     }
   }
@@ -35,45 +65,22 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _notificationTitleController,
-                  decoration: InputDecoration(
-                    labelText: 'Notification Title',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                TextField(
-                  controller: _notificationBodyController,
-                  decoration: InputDecoration(
-                    labelText: 'Notification Body',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _subscribeToTopic,
-                  child: Text('Send Notification'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                  ),
-                ),
-              ],
+        child: Column(
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(labelText: 'Notification Title'),
             ),
-          ),
+            TextField(
+              controller: _bodyController,
+              decoration: InputDecoration(labelText: 'Notification Body'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _sendNotification,
+              child: Text('Send Notification'),
+            ),
+          ],
         ),
       ),
     );

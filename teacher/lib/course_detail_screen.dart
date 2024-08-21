@@ -13,7 +13,7 @@ class CourseDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Course Details'),
-        backgroundColor: Colors.teal,
+
         elevation: 0,
       ),
       body: FutureBuilder<DocumentSnapshot>(

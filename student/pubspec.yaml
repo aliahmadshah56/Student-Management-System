@@ -39,7 +39,9 @@ dependencies:
   firebase_auth: ^5.1.4
   cloud_firestore: ^5.2.1
   firebase_messaging: ^15.0.4
-  url_launcher: ^6.3.0
+  url_launcher: ^6.0.10
+  #fl_chart: ^0.40.5
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:

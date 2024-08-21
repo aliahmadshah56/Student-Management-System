@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -8,6 +9,7 @@ class StudentRegistrationScreen extends StatefulWidget {
 
 class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
   String name = '';
   String email = '';
   String password = '';
@@ -96,9 +98,15 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                       onPressed: () async {
                         try {
                           final newUser = await _auth.createUserWithEmailAndPassword(
-                              email: email, password: password);
+                              email: email,
+                              password: password
+                          );
                           if (newUser != null) {
-                            // Optionally, you can store additional user details in Firestore here
+                            // Save the student name in Firestore
+                            await _firestore.collection('students').doc(newUser.user!.uid).set({
+                              'name': name,
+                              'email': email,
+                            });
                             Navigator.pushReplacementNamed(context, '/student-home');
                           }
                         } catch (e) {
@@ -107,7 +115,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                           );
                         }
                       },
-                      child: Text('Register',style: TextStyle(color: Colors.white),),
+                      child: Text('Register',style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         padding: EdgeInsets.symmetric(vertical: 15),
