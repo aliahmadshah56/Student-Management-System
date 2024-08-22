@@ -39,10 +39,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         });
       }
 
-      final studentData = studentSnapshot.data()!;
-      setState(() {
-        showTopics = List<String>.from(studentData['showTopics'] ?? []);
-      });
+      final studentData = studentSnapshot.data();
+      if (studentData != null) {
+        setState(() {
+          showTopics = List<String>.from(studentData['showTopics'] ?? []);
+        });
+      }
 
       fetchCourseTopics(); // Fetch course topics after fetching student details
       fetchProgressData(); // Fetch progress data for the student
@@ -62,7 +64,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       setState(() {
         topics = courseSnapshot.docs.map((doc) => {
           'id': doc.id,
-          'name': doc.data()['name'],
+          'name': doc.data()['name'] ?? 'Unknown', // Handle missing 'name' field
         }).toList();
         totalTopics = topics.length;
       });
@@ -81,17 +83,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           .collection('students')
           .doc(widget.studentId)
           .collection('progress')
-          .doc(widget.courseId) // Assuming courseId is used as document ID
+          .doc(widget.courseId)
           .collection('topics')
           .get();
 
       setState(() {
-        completedTopics = progressSnapshot.docs.where((doc) => doc.data()['status'] == 'completed').length;
-        pendingTopics = totalTopics - completedTopics;
+        completedTopics = progressSnapshot.docs
+            .where((doc) => doc.data()['status'] == 'completed')
+            .length;
+
+        pendingTopics = progressSnapshot.docs
+            .where((doc) => doc.data()['status'] == 'pending')
+            .length;
+
         completedTopicList = progressSnapshot.docs
             .where((doc) => doc.data()['status'] == 'completed')
-            .map((doc) => doc.id)
-            .toList();
+            .map((doc) => doc.data()['name']?.toString() ?? 'Unknown')
+            .toList()
+            .cast<String>();  // Explicitly cast the list to List<String>
       });
     } catch (e) {
       print("Error fetching progress data: $e");
@@ -102,19 +111,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final studentRef = FirebaseFirestore.instance.collection('students').doc(widget.studentId);
 
     try {
+      bool topicChanged = false;
+
       setState(() {
-        if (isVisible) {
-          if (!showTopics.contains(topicId)) {
-            showTopics.add(topicId);
-          }
-        } else {
+        if (isVisible && !showTopics.contains(topicId)) {
+          showTopics.add(topicId);
+          topicChanged = true;
+        } else if (!isVisible && showTopics.contains(topicId)) {
           showTopics.remove(topicId);
+          topicChanged = true;
         }
       });
 
-      await studentRef.update({
-        'showTopics': showTopics,
-      });
+      if (topicChanged) {
+        await studentRef.update({
+          'showTopics': showTopics,
+        });
+      }
     } catch (e) {
       print("Error updating topic visibility: $e");
     }

@@ -23,6 +23,7 @@ class ProgressPage extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Total Topics: $totalTopics',
@@ -40,19 +41,21 @@ class ProgressPage extends StatelessWidget {
             ),
             SizedBox(height: 16),
             Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  _showCompletedTopics(context);
-                },
-                child: PieChart(
-                  PieChartData(
-                    sections: showingSections(),
-                    borderData: FlBorderData(show: false),
-                    sectionsSpace: 0,
-                    centerSpaceRadius: 60,
-                  ),
+              child: PieChart(
+                PieChartData(
+                  sections: showingSections(),
+                  borderData: FlBorderData(show: false),
+                  sectionsSpace: 0,
+                  centerSpaceRadius: 50,
                 ),
               ),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                _showCompletedTopics(context);
+              },
+              child: Text('Show Completed Topics'),
             ),
           ],
         ),
@@ -61,11 +64,18 @@ class ProgressPage extends StatelessWidget {
   }
 
   List<PieChartSectionData> showingSections() {
+    double total = completedTopics.toDouble() + pendingTopics.toDouble();
+
+    if (total == 0) {
+      return []; // No data to show
+    }
+
     return [
       PieChartSectionData(
         color: Colors.blue,
-        value: completedTopics.toDouble(),
-        title: 'Completed: $completedTopics',
+        value: (completedTopics.toDouble() / total) * 100,
+        title: '${completedTopics.toString()} (${(completedTopics.toDouble() /
+            total * 100).toStringAsFixed(1)}%)',
         radius: 100,
         titleStyle: TextStyle(
           fontSize: 16,
@@ -75,8 +85,9 @@ class ProgressPage extends StatelessWidget {
       ),
       PieChartSectionData(
         color: Colors.red,
-        value: pendingTopics.toDouble(),
-        title: 'Pending: $pendingTopics',
+        value: (pendingTopics.toDouble() / total) * 100,
+        title: '${pendingTopics.toString()} (${(pendingTopics.toDouble() /
+            total * 100).toStringAsFixed(1)}%)',
         radius: 80,
         titleStyle: TextStyle(
           fontSize: 16,
@@ -88,6 +99,41 @@ class ProgressPage extends StatelessWidget {
   }
 
   void _showCompletedTopics(BuildContext context) {
+    if (completedTopicList.isEmpty) {
+      // Handle case when the list is empty
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(
+              'Completed Topics',
+              style: TextStyle(
+                color: Colors.blueGrey,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'No completed topics available.',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.black,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -96,7 +142,7 @@ class ProgressPage extends StatelessWidget {
             'Completed Topics',
             style: TextStyle(
               color: Colors.blueGrey,
-              fontSize: 30,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -117,7 +163,7 @@ class ProgressPage extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: completedTopicList[index],
+                        text: completedTopicList[index],  // Display the topic name
                         style: TextStyle(
                           fontSize: 20,
                           color: Colors.black,
@@ -142,4 +188,5 @@ class ProgressPage extends StatelessWidget {
       },
     );
   }
+
 }

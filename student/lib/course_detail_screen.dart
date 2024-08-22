@@ -25,9 +25,12 @@ class CourseDetailScreen extends StatelessWidget {
                     .doc(studentId)
                     .get();
 
+                // Cast to Map<String, dynamic> before accessing fields
+                final studentData = studentSnapshot.data() as Map<String, dynamic>?;
+
                 // Get the list of topic IDs, ensuring it is cast to List<String>
                 final showTopics = List<String>.from(
-                    studentSnapshot.data()?['showTopics'] ?? []);
+                    studentData?['showTopics'] ?? []);
 
                 if (showTopics.isEmpty) {
                   throw 'No topics found for this student.';
@@ -44,8 +47,9 @@ class CourseDetailScreen extends StatelessWidget {
                 );
 
                 final completedTopicList = topicSnapshots
-                    .where((snapshot) => snapshot.data()?['status'] == 'completed')
-                    .map((snapshot) => snapshot.data()?['name'] ?? 'Unknown')
+                    .where((snapshot) =>
+                (snapshot.data() as Map<String, dynamic>?)?['status']?.toString() == 'completed')
+                    .map((snapshot) => (snapshot.data() as Map<String, dynamic>?)?['name'] as String? ?? 'Unknown')
                     .toList();
 
                 final totalTopics = showTopics.length;
@@ -58,8 +62,8 @@ class CourseDetailScreen extends StatelessWidget {
                     builder: (context) => ProgressPage(
                       totalTopics: totalTopics,
                       completedTopics: completedTopics,
-                      pendingTopics: pendingTopics, completedTopicList: [],
-                     // completedTopicList: completedTopicList,
+                      pendingTopics: pendingTopics,
+                      completedTopicList: completedTopicList,
                     ),
                   ),
                 );
@@ -72,104 +76,69 @@ class CourseDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('courses')
+            .doc(courseId)
+            .collection('topics')
+            .snapshots(),
+        builder: (context, topicSnapshot) {
+          if (topicSnapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
 
-body: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Course Topics:',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('courses')
-                      .doc(courseId)
-                      .collection('topics')
-                      .snapshots(),
-                  builder: (context, topicSnapshot) {
-                    if (topicSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
-                    }
+          if (topicSnapshot.hasError) {
+            return Center(child: Text('Error fetching topics: ${topicSnapshot.error}'));
+          }
 
-                    if (topicSnapshot.hasError) {
-                      return Center(
-                          child: Text(
-                              'Error fetching topics: ${topicSnapshot.error}'));
-                    }
+          if (!topicSnapshot.hasData || topicSnapshot.data!.docs.isEmpty) {
+            return Center(child: Text('No topics available'));
+          }
 
-                    if (!topicSnapshot.hasData ||
-                        topicSnapshot.data!.docs.isEmpty) {
-                      return Center(child: Text('No topics available'));
-                    }
+          final topics = topicSnapshot.data!.docs;
 
-                    final topics = topicSnapshot.data!.docs;
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('students')
+                .doc(studentId)
+                .get(),
+            builder: (context, studentSnapshot) {
+              if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
 
-                    // Get the list of topic IDs from student's showTopics
-                    final showTopicsFuture = FirebaseFirestore.instance
-                        .collection('students')
-                        .doc(studentId)
-                        .get()
-                        .then((studentSnapshot) => List<String>.from(
-                            studentSnapshot.data()?['showTopics'] ?? []));
+              if (studentSnapshot.hasError) {
+                return Center(
+                    child: Text(
+                        'Error fetching student topics: ${studentSnapshot.error}'));
+              }
 
-                    return FutureBuilder<List<String>>(
-                      future: showTopicsFuture,
-                      builder: (context, showTopicsSnapshot) {
-                        if (showTopicsSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Center(child: CircularProgressIndicator());
-                        }
+              if (!studentSnapshot.hasData || studentSnapshot.data?.data() == null) {
+                return Center(child: Text('No topics available for this student'));
+              }
 
-                        if (showTopicsSnapshot.hasError) {
-                          return Center(
-                              child: Text(
-                                  'Error fetching student topics: ${showTopicsSnapshot.error}'));
-                        }
+              final studentData = studentSnapshot.data!.data() as Map<String, dynamic>?;
+              final showTopics = List<String>.from(studentData?['showTopics'] ?? []);
 
-                        if (!showTopicsSnapshot.hasData ||
-                            showTopicsSnapshot.data!.isEmpty) {
-                          return Center(
-                              child:
-                                  Text('No topics available for this student'));
-                        }
+              final filteredTopics = topics
+                  .where((topic) => showTopics.contains(topic.id))
+                  .toList();
 
-                        final showTopics = showTopicsSnapshot.data!;
-
-                        final filteredTopics = topics
-                            .where((topic) => showTopics.contains(topic.id))
-                            .toList();
-
-                        return ListView.builder(
-                          itemCount: filteredTopics.length,
-                          itemBuilder: (context, index) {
-                            final topic = filteredTopics[index];
-                            return TopicCard(
-                              topic: topic,
-                              studentId: studentId,
-                              courseId: courseId,
-                              topicNumber:
-                                  index + 1, // Pass the topic number here
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
+              return ListView.builder(
+                itemCount: filteredTopics.length,
+                itemBuilder: (context, index) {
+                  final topic = filteredTopics[index];
+                  return TopicCard(
+                    topic: topic,
+                    studentId: studentId,
+                    courseId: courseId,
+                    topicNumber: index + 1,
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -198,14 +167,14 @@ class _TopicCardState extends State<TopicCard> {
   @override
   void initState() {
     super.initState();
-    status = widget.topic['status'] ?? 'pending';
+    // Initialize status with a safe default value
+    status = (widget.topic.data() as Map<String, dynamic>?)?['status']?.toString() ?? 'pending';
   }
 
   @override
   Widget build(BuildContext context) {
     final topicData = widget.topic.data() as Map<String, dynamic>? ?? {};
     final topicName = topicData['name'] ?? 'No topic name';
-    final topicNumber = widget.topicNumber;
     final description = topicData['description'] ?? 'No description';
     final documentationUrl = topicData['documentation_url'] ?? '';
     final videoUrl = topicData['video_url'] ?? '';
@@ -237,7 +206,7 @@ class _TopicCardState extends State<TopicCard> {
                   ),
                   SizedBox(width: 16),
                   Text(
-                    'Topic $topicNumber',
+                    'Topic ${widget.topicNumber}',
                     style: Theme.of(context)
                         .textTheme
                         .bodyMedium
@@ -246,13 +215,12 @@ class _TopicCardState extends State<TopicCard> {
                 ],
               ),
               children: [
-                if (description.isNotEmpty) ...[
+                if (description.isNotEmpty)
                   ListTile(
                     title: Text('Description'),
                     subtitle: Text(description),
                   ),
-                ],
-                if (documentationUrl.isNotEmpty) ...[
+                if (documentationUrl.isNotEmpty)
                   ListTile(
                     title: Text('Documentation URL'),
                     subtitle: GestureDetector(
@@ -263,8 +231,7 @@ class _TopicCardState extends State<TopicCard> {
                       ),
                     ),
                   ),
-                ],
-                if (videoUrl.isNotEmpty) ...[
+                if (videoUrl.isNotEmpty)
                   ListTile(
                     title: Text('Video URL'),
                     subtitle: GestureDetector(
@@ -275,7 +242,6 @@ class _TopicCardState extends State<TopicCard> {
                       ),
                     ),
                   ),
-                ],
               ],
             ),
             SizedBox(height: 8),
@@ -333,7 +299,7 @@ class _TopicCardState extends State<TopicCard> {
           .set({
         'status': newStatus,
         'completedAt':
-            newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
+        newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
       });
 
       setState(() {

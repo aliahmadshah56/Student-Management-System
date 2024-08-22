@@ -17,25 +17,43 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
 
   void _addTopic() async {
     if (_topicNameController.text.isNotEmpty) {
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('topics')
-          .add({
-        'name': _topicNameController.text,
-        'created_at': Timestamp.now(),
-        'documentation_url': _documentationUrlController.text,
-        'video_url': _videoUrlController.text,
-        'description': _descriptionController.text,
-      });
-      _topicNameController.clear();
-      _documentationUrlController.clear();
-      _videoUrlController.clear();
-      _descriptionController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Topic added successfully!')),
-      );
-      Navigator.pop(context); // Go back to previous screen
+      try {
+        // Add the new topic to the 'topics' collection
+        DocumentReference topicRef = await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(widget.courseId)
+            .collection('topics')
+            .add({
+          'name': _topicNameController.text,
+          'created_at': Timestamp.now(),
+          'documentation_url': _documentationUrlController.text,
+          'video_url': _videoUrlController.text,
+          'description': _descriptionController.text,
+        });
+
+        // Update the 'showTopics' array in the 'courses' collection
+        await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(widget.courseId)
+            .update({
+          'showTopics': FieldValue.arrayUnion([topicRef.id]),
+        });
+
+        // Clear text fields and show a success message
+        _topicNameController.clear();
+        _documentationUrlController.clear();
+        _videoUrlController.clear();
+        _descriptionController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Topic added and updated successfully!')),
+        );
+        Navigator.pop(context); // Go back to previous screen
+      } catch (e) {
+        print("Error adding topic: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add topic.')),
+        );
+      }
     }
   }
 
