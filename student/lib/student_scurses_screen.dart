@@ -62,12 +62,20 @@ class StudentCoursesScreen extends StatelessWidget {
                     return ShimmerEffect(); // Placeholder while loading
                   }
 
-                  if (courseSnapshot.hasError || !courseSnapshot.hasData) {
+                  if (courseSnapshot.hasError) {
                     return Card(
                       child: ListTile(
                         title: Text('Error fetching course'),
                       ),
                     );
+                  }
+
+                  if (!courseSnapshot.hasData || !courseSnapshot.data!.exists) {
+                    return Card(
+                    //   child: ListTile(
+                    //     title: Text('Course not found'),
+                    //   ),
+                     );
                   }
 
                   final courseData = courseSnapshot.data!;
@@ -89,7 +97,7 @@ class StudentCoursesScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => CourseDetailScreen(
                               courseId: courseId,
-                              studentId: user.uid, // Pass the actual student ID here
+                              studentId: user.uid,
                             ),
                           ),
                         );

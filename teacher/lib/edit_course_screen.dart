@@ -6,6 +6,7 @@ import 'edit_topic_screen.dart';
 class EditCourseScreen extends StatefulWidget {
   final String courseId;
   final String courseName;
+
   EditCourseScreen({required this.courseId, required this.courseName});
 
   @override
@@ -21,6 +22,29 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     _courseNameController = TextEditingController(text: widget.courseName);
   }
 
+  void _confirmDeleteCourse() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete this course?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(), // Close the dialog
+            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              _deleteCourse();
+              Navigator.of(context).pop(); // Close the dialog
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _deleteCourse() async {
     await FirebaseFirestore.instance
         .collection('courses')
@@ -30,6 +54,41 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       SnackBar(content: Text('Course deleted successfully!')),
     );
     Navigator.pop(context);
+  }
+
+  void _confirmDeleteTopic(String topicId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete this topic?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(), // Close the dialog
+            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              _deleteTopic(topicId);
+              Navigator.of(context).pop(); // Close the dialog
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteTopic(String topicId) async {
+    await FirebaseFirestore.instance
+        .collection('courses')
+        .doc(widget.courseId)
+        .collection('topics')
+        .doc(topicId)
+        .delete();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Topic deleted successfully!')),
+    );
   }
 
   void _addTopic() {
@@ -45,11 +104,13 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Course'),
+        title: Text('Edit Course', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.teal,
         actions: [
           IconButton(
-            icon: Icon(Icons.delete),
-            onPressed: _deleteCourse,
+            icon: Icon(Icons.delete, color: Colors.white),
+            onPressed: _confirmDeleteCourse,
+            tooltip: 'Delete Course',
           ),
         ],
       ),
@@ -61,20 +122,31 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
               controller: _courseNameController,
               decoration: InputDecoration(
                 labelText: 'Course Name',
+                labelStyle: TextStyle(color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.deepPurple, width: 2.0),
+                ),
               ),
+              style: TextStyle(fontSize: 18),
               onSubmitted: (value) {
                 // Optionally handle course name update here
               },
             ),
             SizedBox(height: 20),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _addTopic,
-              child: Text('Add Topic'),
+              icon: Icon(Icons.add, color: Colors.white),
+              label: Text('Add Topic', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
                 padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                textStyle: TextStyle(fontSize: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             SizedBox(height: 20),
@@ -94,74 +166,81 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
                     return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   final topics = snapshot.data!.docs;
-                  List<Widget> topicWidgets = [];
-                  for (var topic in topics) {
-                    final topicData = topic.data() as Map<String, dynamic>?;
-
-                    final topicName = topicData?['name'] ?? 'No name';
-                    final topicId = topic.id;
-                    final topicDescription = topicData?['description'] ?? 'No description';
-                    final topicDocumentationUrl = topicData?['documentation_url'] ?? '';
-                    final topicVideoUrl = topicData?['video_url'] ?? '';
-
-                    final topicWidget = ListTile(
-                      title: Text(topicName),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (topicDescription.isNotEmpty) ...[
-                            Text('Description: $topicDescription'),
-                            SizedBox(height: 4),
-                          ],
-                          if (topicDocumentationUrl.isNotEmpty) ...[
-                            Text('Documentation URL: $topicDocumentationUrl'),
-                            SizedBox(height: 4),
-                          ],
-                          if (topicVideoUrl.isNotEmpty) ...[
-                            Text('Video URL: $topicVideoUrl'),
-                            SizedBox(height: 4),
-                          ],
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditTopicScreen(
-                                    courseId: widget.courseId,
-                                    topicId: topicId,
-                                    topicName: topicName,
-                                    topicDescription: topicDescription,
-                                    topicDocumentationUrl: topicDocumentationUrl,
-                                    topicVideoUrl: topicVideoUrl,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () {
-                              FirebaseFirestore.instance
-                                  .collection('courses')
-                                  .doc(widget.courseId)
-                                  .collection('topics')
-                                  .doc(topicId)
-                                  .delete();
-                            },
-                          ),
-                        ],
-                      ),
+                  if (topics.isEmpty) {
+                    return Center(
+                      child: Text('No topics found',
+                          style: TextStyle(fontSize: 18, color: Colors.grey)),
                     );
-                    topicWidgets.add(topicWidget);
                   }
-                  return ListView(
-                    children: topicWidgets,
+                  return ListView.builder(
+                    itemCount: topics.length,
+                    itemBuilder: (context, index) {
+                      final topicData = topics[index].data() as Map<String, dynamic>?;
+                      final topicName = topicData?['name'] ?? 'No name';
+                      final topicId = topics[index].id;
+                      final topicDescription = topicData?['description'] ?? 'No description';
+                      final topicDocumentationUrl = topicData?['documentation_url'] ?? '';
+                      final topicVideoUrl = topicData?['video_url'] ?? '';
+
+                      return Card(
+                        elevation: 4,
+                        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          title: Text(topicName, style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (topicDescription.isNotEmpty) ...[
+                                Text('Description: $topicDescription'),
+                                SizedBox(height: 4),
+                              ],
+                              if (topicDocumentationUrl.isNotEmpty) ...[
+                                Text('Documentation URL: $topicDocumentationUrl'),
+                                SizedBox(height: 4),
+                              ],
+                              if (topicVideoUrl.isNotEmpty) ...[
+                                Text('Video URL: $topicVideoUrl'),
+                                SizedBox(height: 4),
+                              ],
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EditTopicScreen(
+                                        courseId: widget.courseId,
+                                        topicId: topicId,
+                                        topicName: topicName,
+                                        topicDescription: topicDescription,
+                                        topicDocumentationUrl: topicDocumentationUrl,
+                                        topicVideoUrl: topicVideoUrl,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Edit Topic',
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  _confirmDeleteTopic(topicId);
+                                },
+                                tooltip: 'Delete Topic',
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),

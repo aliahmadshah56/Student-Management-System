@@ -1,5 +1,3 @@
-// lib/screens/add_or_update_topic_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -78,47 +76,69 @@ class _AddOrUpdateTopicScreenState extends State<AddOrUpdateTopicScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.topicId == null ? 'Add Topic' : 'Update Topic'),
+        backgroundColor: theme.primaryColor,
+        elevation: 0,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(labelText: 'Topic Name'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-            ),
-            TextField(
-              controller: _documentationUrlController,
-              decoration: InputDecoration(labelText: 'Documentation URL'),
-            ),
-            TextField(
-              controller: _videoUrlController,
-              decoration: InputDecoration(labelText: 'Video URL'),
-            ),
-            CheckboxListTile(
+            _buildTextField(_nameController, 'Topic Name'),
+            SizedBox(height: 15),
+            _buildTextField(_descriptionController, 'Description', maxLines: 3),
+            SizedBox(height: 15),
+            _buildTextField(_documentationUrlController, 'Documentation URL'),
+            SizedBox(height: 15),
+            _buildTextField(_videoUrlController, 'Video URL'),
+            SizedBox(height: 20),
+            SwitchListTile(
               title: Text('Visible for Students'),
               value: _isVisibleForStudents,
               onChanged: (value) {
                 setState(() {
-                  _isVisibleForStudents = value ?? true;
+                  _isVisibleForStudents = value;
                 });
               },
+              activeColor: theme.primaryColor,
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 30),
             ElevatedButton(
               onPressed: _saveTopic,
-              child: Text(widget.topicId == null ? 'Add Topic' : 'Update Topic'),
+              child: Text(
+                widget.topicId == null ? 'Add Topic' : 'Update Topic',
+                style: theme.textTheme.headlineMedium!.copyWith(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String labelText, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.grey[600]),
+        filled: true,
+        fillColor: Colors.grey[200],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      maxLines: maxLines,
     );
   }
 }

@@ -72,42 +72,60 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final fatherMobile = widget.request['father_mobile'] ?? 'No father mobile';
     final timestamp = widget.request['timestamp']?.toDate();
     final courseName = widget.request['course_name'] ?? 'Unknown Course';
-    final studentId = widget.request['student_id'] ?? 'No ID'; // Retrieve student ID
+    final studentId = widget.request['student_id'] ?? 'No ID';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Student Details'),
+        backgroundColor: Colors.teal,
+        title: Text('Student Details',style: TextStyle(color: Colors.white),),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: isLoading
             ? Center(child: CircularProgressIndicator())
-            : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('Student ID', studentId), // Display student ID
-            _buildDetailRow('Name', studentName),
-            _buildDetailRow('Mobile', studentMobile),
-            _buildDetailRow('Father\'s Name', fatherName),
-            _buildDetailRow('Father\'s Mobile', fatherMobile),
-            _buildDetailRow('Course', courseName),
-            if (timestamp != null) _buildDetailRow('Requested on', _formatDate(timestamp)),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CourseDetailScreen(
-                      studentId: studentId,
-                      courseId: widget.request['course_id'], // Pass the course ID
+            : Card(
+          elevation: 5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('Student ID', studentId),
+                _buildDetailRow('Name', studentName),
+                _buildDetailRow('Mobile', studentMobile),
+                _buildDetailRow('Father\'s Name', fatherName),
+                _buildDetailRow('Father\'s Mobile', fatherMobile),
+                if (timestamp != null)
+                  _buildDetailRow('Requested on', _formatDate(timestamp)),
+                SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CourseDetailScreen(
+                          studentId: studentId,
+                          courseId: widget.request['course_id'],
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.view_list,color: Colors.white,),
+                  label: Text('View Course Topics',style: TextStyle(color: Colors.white),),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                );
-              },
-              child: Text('View Course Topics'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -115,18 +133,35 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text('$label:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-          Expanded(child: Text(value, style: TextStyle(fontSize: 16))),
+          Expanded(
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.teal,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   String _formatDate(DateTime dateTime) {
-    return '${dateTime.toLocal().toIso8601String()}'; // Format date as needed
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 }

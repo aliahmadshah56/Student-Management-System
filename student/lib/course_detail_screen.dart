@@ -19,21 +19,30 @@ class CourseDetailScreen extends StatelessWidget {
             icon: Icon(Icons.bar_chart),
             onPressed: () async {
               try {
-                // Fetch the student's progress data
-                final studentSnapshot = await FirebaseFirestore.instance
+                // Fetch the student's enrolled course document
+                final studentCourseRef = FirebaseFirestore.instance
                     .collection('students')
                     .doc(studentId)
-                    .get();
+                    .collection('enrolledCourses')
+                    .doc(courseId);
 
-                // Cast to Map<String, dynamic> before accessing fields
-                final studentData = studentSnapshot.data() as Map<String, dynamic>?;
+                final courseSnapshot = await studentCourseRef.get();
+                if (!courseSnapshot.exists) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Course not found for this student.')),
+                  );
+                  return;
+                }
 
-                // Get the list of topic IDs, ensuring it is cast to List<String>
-                final showTopics = List<String>.from(
-                    studentData?['showTopics'] ?? []);
+                // Fetch showTopics from the course document
+                final courseData = courseSnapshot.data() as Map<String, dynamic>? ?? {};
+                final showTopics = List<String>.from(courseData['showTopics'] ?? []);
 
                 if (showTopics.isEmpty) {
-                  throw 'No topics found for this student.';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No topics found for this student.')),
+                  );
+                  return;
                 }
 
                 // Fetch topic details
@@ -101,24 +110,24 @@ class CourseDetailScreen extends StatelessWidget {
             future: FirebaseFirestore.instance
                 .collection('students')
                 .doc(studentId)
+                .collection('enrolledCourses')
+                .doc(courseId)
                 .get(),
-            builder: (context, studentSnapshot) {
-              if (studentSnapshot.connectionState == ConnectionState.waiting) {
+            builder: (context, courseSnapshot) {
+              if (courseSnapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());
               }
 
-              if (studentSnapshot.hasError) {
-                return Center(
-                    child: Text(
-                        'Error fetching student topics: ${studentSnapshot.error}'));
+              if (courseSnapshot.hasError) {
+                return Center(child: Text('Error fetching student topics: ${courseSnapshot.error}'));
               }
 
-              if (!studentSnapshot.hasData || studentSnapshot.data?.data() == null) {
+              if (!courseSnapshot.hasData || courseSnapshot.data?.data() == null) {
                 return Center(child: Text('No topics available for this student'));
               }
 
-              final studentData = studentSnapshot.data!.data() as Map<String, dynamic>?;
-              final showTopics = List<String>.from(studentData?['showTopics'] ?? []);
+              final courseData = courseSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+              final showTopics = List<String>.from(courseData['showTopics'] ?? []);
 
               final filteredTopics = topics
                   .where((topic) => showTopics.contains(topic.id))
@@ -282,6 +291,7 @@ class _TopicCardState extends State<TopicCard> {
 
   Future<void> _updateStatus(String newStatus) async {
     try {
+      // Update status in course topics
       await FirebaseFirestore.instance
           .collection('courses')
           .doc(widget.courseId)
@@ -289,17 +299,17 @@ class _TopicCardState extends State<TopicCard> {
           .doc(widget.topic.id)
           .update({'status': newStatus});
 
+      // Update status in student's progress
       await FirebaseFirestore.instance
           .collection('students')
           .doc(widget.studentId)
-          .collection('progress')
+          .collection('enrolledCourses')
           .doc(widget.courseId)
           .collection('topics')
           .doc(widget.topic.id)
           .set({
         'status': newStatus,
-        'completedAt':
-        newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
+        'completedAt': newStatus == 'completed' ? FieldValue.serverTimestamp() : null,
       });
 
       setState(() {
@@ -316,43 +326,35 @@ class _TopicCardState extends State<TopicCard> {
     }
   }
 
+
   void _showURLDialog(BuildContext context, String url) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Open URL'),
-          content: Text('Do you want to open this URL?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Close'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _launchUrl(context, url);
-              },
-              child: Text('Open'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: Text('Open URL'),
+        content: Text('Do you want to open this URL?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (await canLaunch(url)) {
+                await launch(url);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not launch $url')),
+                );
+              }
+            },
+            child: Text('Open'),
+          ),
+        ],
+      ),
     );
-  }
-
-  Future<void> _launchUrl(BuildContext context, String url) async {
-    try {
-      if (!url.startsWith('http')) {
-        url = 'https://$url';
-      }
-      await launch(url);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error launching URL: $e')),
-      );
-    }
   }
 }

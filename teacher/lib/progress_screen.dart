@@ -6,12 +6,14 @@ class ProgressPage extends StatelessWidget {
   final int completedTopics;
   final int pendingTopics;
   final List<String> completedTopicList;
+  final List<String> showTopics; // Declare showTopics
 
   ProgressPage({
     required this.totalTopics,
     required this.completedTopics,
     required this.pendingTopics,
     required this.completedTopicList,
+    required this.showTopics, // Initialize showTopics
   });
 
   @override
@@ -99,6 +101,9 @@ class ProgressPage extends StatelessWidget {
   }
 
   void _showCompletedTopics(BuildContext context) {
+    // Print the completedTopicList for debugging
+    print('Completed Topics List: $completedTopicList');
+
     if (completedTopicList.isEmpty) {
       // Handle case when the list is empty
       showDialog(
@@ -152,6 +157,8 @@ class ProgressPage extends StatelessWidget {
               separatorBuilder: (context, index) => SizedBox(height: 8),
               itemCount: completedTopicList.length,
               itemBuilder: (context, index) {
+                // Ensure the topic name is displayed correctly
+                String topicName = completedTopicList[index];
                 return RichText(
                   text: TextSpan(
                     children: [
@@ -163,7 +170,7 @@ class ProgressPage extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: completedTopicList[index],  // Display the topic name
+                        text: topicName.isNotEmpty ? topicName : 'Unknown',
                         style: TextStyle(
                           fontSize: 20,
                           color: Colors.black,
@@ -188,5 +195,4 @@ class ProgressPage extends StatelessWidget {
       },
     );
   }
-
 }

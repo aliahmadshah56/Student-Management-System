@@ -46,7 +46,6 @@ class ViewRequestsScreen extends StatelessWidget {
           .get();
 
       if (courseDoc.exists) {
-        // Cast the data to a Map<String, dynamic>
         final data = courseDoc.data() as Map<String, dynamic>;
         return data['name'] ?? 'Unknown Course';
       } else {
@@ -62,7 +61,8 @@ class ViewRequestsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('View Requests'),
+        title: Text('View Requests',style: TextStyle(color: Colors.teal),),
+
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -84,87 +84,109 @@ class ViewRequestsScreen extends StatelessWidget {
 
           final requests = snapshot.data!.docs;
 
-          return SingleChildScrollView(
-            child: Column(
-              children: requests.map((requestDoc) {
-                final request = requestDoc.data() as Map<String, dynamic>;
-                final requestId = requestDoc.id;
+          return ListView.builder(
+            padding: EdgeInsets.all(8.0),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final requestDoc = requests[index];
+              final request = requestDoc.data() as Map<String, dynamic>;
+              final requestId = requestDoc.id;
 
-                return FutureBuilder<String>(
-                  future: _fetchCourseName(request['course_id']),
-                  builder: (context, courseSnapshot) {
-                    if (courseSnapshot.connectionState == ConnectionState.waiting) {
-                      return ListTile(
-                        title: Text('Loading...'),
-                      );
-                    }
+              return FutureBuilder<String>(
+                future: _fetchCourseName(request['course_id']),
+                builder: (context, courseSnapshot) {
+                  if (courseSnapshot.connectionState == ConnectionState.waiting) {
+                    return ListTile(
+                      title: Text('Loading...'),
+                    );
+                  }
 
-                    if (courseSnapshot.hasError) {
-                      return ListTile(
-                        title: Text('Error fetching course name'),
-                      );
-                    }
+                  if (courseSnapshot.hasError) {
+                    return ListTile(
+                      title: Text('Error fetching course name'),
+                    );
+                  }
 
-                    final courseName = courseSnapshot.data ?? 'Unknown Course';
+                  final courseName = courseSnapshot.data ?? 'Unknown Course';
 
-                    return Card(
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      margin: EdgeInsets.all(8.0),
-                      child: ListTile(
-                        title: Text(request['student_name'] ?? 'Unknown'),
-                        subtitle: Text('Course: $courseName'),
-                        trailing: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Mobile: ${request['student_mobile'] ?? 'N/A'}'),
-                            Text('Father: ${request['father_name'] ?? 'N/A'}'),
-                            Text('Status: ${request['status'] ?? 'Unknown Status'}'),
-                          ],
+                  return Card(
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                    child: ListTile(
+                      title: Text(
+                        request['student_name'] ?? 'Unknown',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
                         ),
-                        isThreeLine: true,
-                        contentPadding: EdgeInsets.all(8.0),
-                        dense: true,
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: Text('Request Actions'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('Student Name: ${request['student_name'] ?? 'Unknown'}'),
-                                  Text('Course Name: $courseName'),
-                                  Text('Status: ${request['status'] ?? 'Pending'}'),
-                                ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Course: $courseName'),
+                          Text('Mobile: ${request['student_mobile'] ?? 'N/A'}'),
+                          Text('Father: ${request['father_name'] ?? 'N/A'}'),
+                          Text('Status: ${request['status'] ?? 'Unknown Status'}'),
+                        ],
+                      ),
+                      trailing: Icon(Icons.more_vert, color: Colors.teal),
+                      isThreeLine: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            title: Text(
+                              'Request Actions',
+                              style: TextStyle(
+                                color: Colors.teal,
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                    _acceptRequest(context, requestId);
-                                  },
-                                  child: Text('Accept'),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                    _rejectRequest(context, requestId);
-                                  },
-                                  child: Text('Reject'),
-                                ),
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Student Name: ${request['student_name'] ?? 'Unknown'}'),
+                                Text('Course Name: $courseName'),
+                                Text('Status: ${request['status'] ?? 'Pending'}'),
                               ],
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                );
-              }).toList(),
-            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  _acceptRequest(context, requestId);
+                                },
+                                child: Text(
+                                  'Accept',
+                                  style: TextStyle(color: Colors.green[700]),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  _rejectRequest(context, requestId);
+                                },
+                                child: Text(
+                                  'Reject',
+                                  style: TextStyle(color: Colors.red[700]),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
           );
         },
       ),

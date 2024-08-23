@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'student_detail_screen.dart'; // Import the student detail screen
+import 'student_detail_screen.dart';
 
 class ManageRequestsScreen extends StatefulWidget {
   @override
@@ -34,13 +34,19 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
 
     if (user == null) {
       return Scaffold(
-        body: Center(child: Text('You must be signed in to view this page.')),
+        body: Center(
+          child: Text(
+            'You must be signed in to view this page.',
+            style: TextStyle(fontSize: 18, color: Colors.red),
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Requests'),
+        title: Text('Manage Requests',style: TextStyle(color: Colors.teal),),
+        elevation: 0,
       ),
       body: Column(
         children: [
@@ -50,8 +56,18 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Search by student name or course',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
                 prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                )
+                    : null,
               ),
             ),
           ),
@@ -59,7 +75,7 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('requests')
-                  .where('status', isEqualTo: 'accepted') // Show only accepted requests
+                  .where('status', isEqualTo: 'accepted')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -67,11 +83,21 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  );
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(child: Text('No requests available.'));
+                  return Center(
+                    child: Text(
+                      'No requests available.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  );
                 }
 
                 final requests = snapshot.data!.docs.toList();
@@ -84,7 +110,12 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
                     }
 
                     if (courseSnapshot.hasError) {
-                      return Center(child: Text('Error loading course details'));
+                      return Center(
+                        child: Text(
+                          'Error loading course details',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      );
                     }
 
                     final courseDetailsList = courseSnapshot.data ?? [];
@@ -117,11 +148,20 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
                         return Card(
                           elevation: 5,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(15),
                           ),
+                          margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
                           child: ListTile(
-                            title: Text(request['student_name'] ?? 'Unknown'),
-                            subtitle: Text('Course: ${courseDetails['name'] ?? 'Unknown Course'}'),
+                            contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                            title: Text(
+                              request['student_name'] ?? 'Unknown',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              'Course: ${courseDetails['name'] ?? 'Unknown Course'}',
+                              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                            ),
+                            trailing: Icon(Icons.arrow_forward_ios, color: Colors.teal),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -164,5 +204,4 @@ class _ManageRequestsScreenState extends State<ManageRequestsScreen> {
       return [];
     }
   }
-
 }

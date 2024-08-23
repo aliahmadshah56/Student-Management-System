@@ -36,10 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Teacher Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.teal,
+        title: Text('Teacher Dashboard', style: TextStyle(fontWeight: FontWeight.bold,color:Colors.white)),
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications),
+            icon: Icon(Icons.notifications,color: Colors.white,),
             onPressed: () {
               Navigator.pushNamed(context, '/send-notification');
             },
@@ -110,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).primaryColor,
+        selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey[600],
         showUnselectedLabels: true,
         onTap: _onItemTapped,

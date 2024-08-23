@@ -24,32 +24,40 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   void initState() {
     super.initState();
-    fetchStudentDetails(); // Fetch student details and topics
+    fetchCourseDetails();
   }
 
-  Future<void> fetchStudentDetails() async {
+  Future<void> fetchCourseDetails() async {
     try {
-      final studentRef = FirebaseFirestore.instance.collection('students').doc(widget.studentId);
-      final studentSnapshot = await studentRef.get();
+      final studentRef = FirebaseFirestore.instance
+          .collection('students')
+          .doc(widget.studentId)
+          .collection('enrolledCourses')
+          .doc(widget.courseId);
 
-      if (!studentSnapshot.exists) {
+      final courseSnapshot = await studentRef.get();
+
+      if (courseSnapshot.exists) {
+        final courseData = courseSnapshot.data();
+        if (courseData != null) {
+          setState(() {
+            showTopics = List<String>.from(courseData['showTopics'] ?? []);
+          });
+        }
+      } else {
         await studentRef.set({
-          'name': 'Unknown',
+          'courseName': 'Unknown Course',
           'showTopics': [],
         });
-      }
-
-      final studentData = studentSnapshot.data();
-      if (studentData != null) {
         setState(() {
-          showTopics = List<String>.from(studentData['showTopics'] ?? []);
+          showTopics = [];
         });
       }
 
-      fetchCourseTopics(); // Fetch course topics after fetching student details
-      fetchProgressData(); // Fetch progress data for the student
+      fetchCourseTopics();
+      fetchProgressData();
     } catch (e) {
-      print("Error fetching student details: $e");
+      print("Error fetching course details: $e");
     }
   }
 
@@ -64,7 +72,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       setState(() {
         topics = courseSnapshot.docs.map((doc) => {
           'id': doc.id,
-          'name': doc.data()['name'] ?? 'Unknown', // Handle missing 'name' field
+          'name': doc.data()['name'] ?? 'Unknown',
         }).toList();
         totalTopics = topics.length;
       });
@@ -72,7 +80,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       print("Error fetching course topics: $e");
     } finally {
       setState(() {
-        isLoading = false; // Stop loading once data is fetched
+        isLoading = false;
       });
     }
   }
@@ -82,7 +90,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       final progressSnapshot = await FirebaseFirestore.instance
           .collection('students')
           .doc(widget.studentId)
-          .collection('progress')
+          .collection('enrolledCourses')
           .doc(widget.courseId)
           .collection('topics')
           .get();
@@ -100,7 +108,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             .where((doc) => doc.data()['status'] == 'completed')
             .map((doc) => doc.data()['name']?.toString() ?? 'Unknown')
             .toList()
-            .cast<String>();  // Explicitly cast the list to List<String>
+            .cast<String>();
       });
     } catch (e) {
       print("Error fetching progress data: $e");
@@ -108,7 +116,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   }
 
   void toggleTopicVisibility(String topicId, bool isVisible) async {
-    final studentRef = FirebaseFirestore.instance.collection('students').doc(widget.studentId);
+    final studentRef = FirebaseFirestore.instance
+        .collection('students')
+        .doc(widget.studentId)
+        .collection('enrolledCourses')
+        .doc(widget.courseId);
 
     try {
       bool topicChanged = false;
@@ -135,12 +147,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Course Details'),
+        title: Text('Course Details',style: TextStyle(color: Colors.white),),
+        backgroundColor: Colors.teal,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.show_chart),
+            icon: Icon(Icons.show_chart, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -150,6 +166,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     completedTopics: completedTopics,
                     pendingTopics: pendingTopics,
                     completedTopicList: completedTopicList,
+                   showTopics: showTopics,
                   ),
                 ),
               );
@@ -159,30 +176,52 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Expanded(
-            child: topics.isEmpty
-                ? Center(child: Text('No topics found'))
-                : ListView.builder(
-              itemCount: topics.length,
-              itemBuilder: (context, index) {
-                final topic = topics[index];
-                final isVisible = showTopics.contains(topic['id']);
-
-                return ListTile(
-                  title: Text(topic['name']),
-                  trailing: Checkbox(
-                    value: isVisible,
-                    onChanged: (bool? value) {
-                      toggleTopicVisibility(topic['id'], value ?? false);
-                    },
-                  ),
-                );
-              },
+          : Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Topics',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            SizedBox(height: 16),
+            Expanded(
+              child: topics.isEmpty
+                  ? Center(child: Text('No topics found'))
+                  : ListView.builder(
+                itemCount: topics.length,
+                itemBuilder: (context, index) {
+                  final topic = topics[index];
+                  final isVisible = showTopics.contains(topic['id']);
+
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    elevation: 3,
+                    child: ListTile(
+                      title: Text(
+                        topic['name'],
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      trailing: Switch(
+                        value: isVisible,
+                        onChanged: (value) {
+                          toggleTopicVisibility(topic['id'], value);
+                        },
+                        activeColor: Colors.teal,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

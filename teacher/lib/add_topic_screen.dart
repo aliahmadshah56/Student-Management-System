@@ -18,7 +18,6 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
   void _addTopic() async {
     if (_topicNameController.text.isNotEmpty) {
       try {
-        // Add the new topic to the 'topics' collection
         DocumentReference topicRef = await FirebaseFirestore.instance
             .collection('courses')
             .doc(widget.courseId)
@@ -31,7 +30,6 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
           'description': _descriptionController.text,
         });
 
-        // Update the 'showTopics' array in the 'courses' collection
         await FirebaseFirestore.instance
             .collection('courses')
             .doc(widget.courseId)
@@ -39,15 +37,14 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
           'showTopics': FieldValue.arrayUnion([topicRef.id]),
         });
 
-        // Clear text fields and show a success message
         _topicNameController.clear();
         _documentationUrlController.clear();
         _videoUrlController.clear();
         _descriptionController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Topic added and updated successfully!')),
+          SnackBar(content: Text('Topic added successfully!')),
         );
-        Navigator.pop(context); // Go back to previous screen
+        Navigator.pop(context);
       } catch (e) {
         print("Error adding topic: $e");
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,65 +56,58 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('Add Topic'),
+        elevation: 0,
+        backgroundColor: Colors.teal,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _topicNameController,
-              decoration: InputDecoration(
-                labelText: 'Topic Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _documentationUrlController,
-              decoration: InputDecoration(
-                labelText: 'Documentation URL',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _videoUrlController,
-              decoration: InputDecoration(
-                labelText: 'Video URL',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              maxLines: 3,
-            ),
-            SizedBox(height: 20),
+            _buildTextField(_topicNameController, 'Topic Name'),
+            SizedBox(height: 15),
+            _buildTextField(_documentationUrlController, 'Documentation URL'),
+            SizedBox(height: 15),
+            _buildTextField(_videoUrlController, 'Video URL'),
+            SizedBox(height: 15),
+            _buildTextField(_descriptionController, 'Description', maxLines: 4),
+            SizedBox(height: 30),
             ElevatedButton(
               onPressed: _addTopic,
-              child: Text('Add Topic'),
+              child: Text(
+                'Add Topic',
+                style: theme.textTheme.headlineMedium!.copyWith(color: Colors.teal),
+              ),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                padding: EdgeInsets.symmetric(horizontal: 60, vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String labelText, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.grey[600]),
+        filled: true,
+        fillColor: Colors.grey[200],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      maxLines: maxLines,
     );
   }
 }
