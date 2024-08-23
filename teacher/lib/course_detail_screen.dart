@@ -139,11 +139,26 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         await studentRef.update({
           'showTopics': showTopics,
         });
+
+        // Add or remove the topic with status 'pending' under the topics subcollection
+        final topicDocRef = studentRef.collection('topics').doc(topicId);
+
+        if (isVisible) {
+          // Add the topic with 'pending' status
+          await topicDocRef.set({
+            'status': 'pending',
+            'completedAt': null,
+          });
+        } else {
+          // Optionally, you could delete the topic document if not visible
+          await topicDocRef.delete();
+        }
       }
     } catch (e) {
       print("Error updating topic visibility: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +166,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Course Details',style: TextStyle(color: Colors.white),),
+        title: Text('Course Details', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
         elevation: 0,
         actions: [
@@ -162,11 +177,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ProgressPage(
-                    totalTopics: totalTopics,
-                    completedTopics: completedTopics,
-                    pendingTopics: pendingTopics,
-                    completedTopicList: completedTopicList,
-                   showTopics: showTopics,
+                    studentId: widget.studentId,
+                    courseId: widget.courseId,
                   ),
                 ),
               );
